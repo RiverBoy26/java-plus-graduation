@@ -49,6 +49,7 @@ spring:
                   - /users/{userId}/events
                   - /users/{userId}/events/**
                   - /users/{userId}/requests
+                  - /users/{userId}/requests/**
           filters:
             - name: Retry
               args:
