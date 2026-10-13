@@ -13,9 +13,9 @@
     <packaging>pom</packaging>
 
     <modules>
-        <module>statistics-service-dto</module>
-        <module>statistics-service-client</module>
-        <module>statistics-service-server</module>
+        <module>stats-dto</module>
+        <module>stats-client</module>
+        <module>stats-server</module>
     </modules>
 
     <properties>
@@ -24,4 +24,15 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>2023.0.3</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 </project>
