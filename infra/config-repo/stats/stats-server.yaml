@@ -3,16 +3,14 @@ server:
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/ewm_stats_db
-    username: postgres
-    password: 54321
+    url: jdbc:postgresql://${POSTGRES_HOST:127.0.0.1}:${POSTGRES_PORT:5432}/${STATS_DB:ewm_stats_db}
+    username: ${POSTGRES_USER:postgres}
+    password: ${POSTGRES_PASSWORD:password}
     driver-class-name: org.postgresql.Driver
-  sql:
-    init:
-      mode: always
-      continue-on-error: true
+    hikari:
+      connection-timeout: 5000
+
   jpa:
-    datasource-platform: org.hibernate.dialect.PostgreSQLDialect
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
       ddl-auto: update
-    show-sql: true
