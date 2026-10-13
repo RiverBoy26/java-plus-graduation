@@ -1,7 +1,7 @@
 services:
   stats-db:
     image: postgres:16.1
-    container_name: ewm-stats
+    container_name: ewm-stats_db
     environment:
       POSTGRES_DB: ewm-stats
       POSTGRES_USER: postgres
