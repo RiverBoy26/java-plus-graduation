@@ -3,22 +3,20 @@ server:
 
 spring:
   datasource:
-    url: jdbc:postgresql://127.0.0.1:5433/${POSTGRES_DB:ewm}
-    username: ${POSTGRES_USER:postgres}
-    password: ${POSTGRES_PASSWORD:postgres}
+    url: jdbc:postgresql://localhost:5432/ewm_main_db
+    username: postgres
+    password: 54321
     driver-class-name: org.postgresql.Driver
-  jpa:
-    hibernate:
-      ddl-auto: create-drop
-    show-sql: true
-    properties:
+    sql:
+      init:
+        mode: always
+        continue-on-error: true
+
+    jpa:
+      datasource-platform: org.hibernate.dialect.PostgreSQLDialect
       hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-        format_sql: true
-        jdbc:
-          lob:
-            non_contextual_creation: true
-    open-in-view: false
+        ddl-auto: update
+      show-sql: true
 
 
 management:
