@@ -3,7 +3,7 @@ server:
 
 spring:
   datasource:
-    url: "jdbc:postgresql://127.0.0.1:5433/ewm"
+    url: jdbc:postgresql://127.0.0.1:5433/${POSTGRES_DB:ewm}
     username: ${POSTGRES_USER:postgres}
     password: ${POSTGRES_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver

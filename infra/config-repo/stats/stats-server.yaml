@@ -3,7 +3,7 @@ server:
 
 spring:
   datasource:
-    url: "jdbc:postgresql://127.0.0.1:5432/ewm-stats"
+    url: jdbc:postgresql://127.0.0.1:5432/${POSTGRES_DB:ewm-stats}
     username: ${POSTGRES_USER:postgres}
     password: ${POSTGRES_PASSWORD:postgres}
   jpa:
