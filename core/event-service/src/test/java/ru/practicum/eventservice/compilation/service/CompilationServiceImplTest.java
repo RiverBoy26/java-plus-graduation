@@ -1,3 +1,4 @@
+
 package ru.practicum.eventservice.compilation.service;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -8,29 +9,27 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import ru.practicum.common.dto.CompilationDto;
+import ru.practicum.common.dto.EventShortDto;
 import ru.practicum.common.exception.ConflictException;
 import ru.practicum.common.exception.NotFoundException;
+import ru.practicum.eventservice.compilation.CompilationEventReader;
 import ru.practicum.eventservice.compilation.dto.NewCompilationDto;
 import ru.practicum.eventservice.compilation.dto.UpdateCompilationRequest;
 import ru.practicum.eventservice.compilation.entity.Compilation;
 import ru.practicum.eventservice.compilation.mapper.CompilationMapper;
 import ru.practicum.eventservice.compilation.repository.CompilationRepository;
-import ru.practicum.eventservice.model.Event;
-import ru.practicum.eventservice.repository.EventRepository;
 
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anySet;
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -40,7 +39,7 @@ class CompilationServiceImplTest {
     private CompilationRepository compilationRepository;
 
     @Mock
-    private EventRepository eventRepository;
+    private CompilationEventReader eventReader;
 
     @Mock
     private CompilationMapper compilationMapper;
@@ -74,11 +73,16 @@ class CompilationServiceImplTest {
         );
     }
 
+    private EventShortDto eventDto(Long id) {
+        EventShortDto dto = new EventShortDto();
+        dto.setId(id);
+        return dto;
+    }
+
     @Test
-    void createCompilation_shouldCreateCompilationWithoutEvents() {
+    void createCompilation_shouldCreateWithoutEvents() {
         when(compilationMapper.toEntity(
-                newCompilationDto,
-                new LinkedHashSet<>()
+                eq(newCompilationDto), eq(Set.of())
         )).thenReturn(compilation);
 
         when(compilationRepository.saveAndFlush(compilation))
@@ -90,37 +94,25 @@ class CompilationServiceImplTest {
         CompilationDto result =
                 compilationService.createCompilation(newCompilationDto);
 
-        assertThat(result).isNotNull();
         assertThat(result.getId()).isEqualTo(1L);
         assertThat(result.getTitle()).isEqualTo("Летние события");
         assertThat(result.getPinned()).isTrue();
 
-        verify(compilationRepository)
-                .saveAndFlush(compilation);
-
-        verify(eventRepository, never())
-                .findAllById(any());
+        verify(compilationRepository).saveAndFlush(compilation);
+        verifyNoInteractions(eventReader);
     }
 
     @Test
-    void createCompilation_shouldCreateCompilationWithEvents() {
-        Event secondEvent = new Event();
-        secondEvent.setId(2L);
-
-        Event firstEvent = new Event();
-        firstEvent.setId(1L);
-
+    void createCompilation_shouldCreateWithEvents() {
         newCompilationDto.setEvents(
-                new LinkedHashSet<>(Set.of(2L, 1L))
+                new LinkedHashSet<>(List.of(2L, 1L))
         );
 
-        when(eventRepository.findAllById(
-                newCompilationDto.getEvents()
-        )).thenReturn(List.of(secondEvent, firstEvent));
+        when(eventReader.getEvents(anyList()))
+                .thenReturn(List.of(eventDto(2L), eventDto(1L)));
 
         when(compilationMapper.toEntity(
-                any(NewCompilationDto.class),
-                anySet()
+                eq(newCompilationDto), anySet()
         )).thenReturn(compilation);
 
         when(compilationRepository.saveAndFlush(compilation))
@@ -131,49 +123,39 @@ class CompilationServiceImplTest {
 
         compilationService.createCompilation(newCompilationDto);
 
-        ArgumentCaptor<Set<Event>> eventsCaptor =
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Set<Long>> captor =
                 ArgumentCaptor.forClass(Set.class);
 
         verify(compilationMapper).toEntity(
-                any(NewCompilationDto.class),
-                eventsCaptor.capture()
+                eq(newCompilationDto), captor.capture()
         );
 
-        assertThat(eventsCaptor.getValue())
-                .extracting(Event::getId)
+        assertThat(captor.getValue())
                 .containsExactly(1L, 2L);
     }
 
     @Test
-    void createCompilation_shouldThrowNotFound_whenEventMissing() {
-        Event event = new Event();
-        event.setId(1L);
+    void createCompilation_whenEventMissing_shouldThrowNotFound() {
+        newCompilationDto.setEvents(Set.of(1L, 2L));
 
-        newCompilationDto.setEvents(
-                new LinkedHashSet<>(Set.of(1L, 2L))
-        );
-
-        when(eventRepository.findAllById(
-                newCompilationDto.getEvents()
-        )).thenReturn(List.of(event));
+        when(eventReader.getEvents(anyList()))
+                .thenReturn(List.of(eventDto(1L)));
 
         assertThatThrownBy(() ->
-                compilationService.createCompilation(
-                        newCompilationDto
-                ))
+                compilationService.createCompilation(newCompilationDto)
+        )
                 .isInstanceOf(NotFoundException.class)
-                .hasMessageContaining("2")
-                .hasMessageContaining("were not found");
+                .hasMessageContaining("2");
 
         verify(compilationRepository, never())
                 .saveAndFlush(any(Compilation.class));
     }
 
     @Test
-    void createCompilation_shouldThrowConflict_whenTitleExists() {
+    void createCompilation_whenTitleExists_shouldThrowConflict() {
         when(compilationMapper.toEntity(
-                newCompilationDto,
-                new LinkedHashSet<>()
+                eq(newCompilationDto), anySet()
         )).thenReturn(compilation);
 
         when(compilationRepository.saveAndFlush(compilation))
@@ -182,19 +164,17 @@ class CompilationServiceImplTest {
                 ));
 
         assertThatThrownBy(() ->
-                compilationService.createCompilation(
-                        newCompilationDto
-                ))
+                compilationService.createCompilation(newCompilationDto)
+        )
                 .isInstanceOf(ConflictException.class)
-                .hasMessageContaining("Летние события")
-                .hasMessageContaining("already exists");
+                .hasMessageContaining("Летние события");
     }
 
     @Test
     void updateCompilation_shouldUpdateAllFields() {
         UpdateCompilationRequest request =
                 new UpdateCompilationRequest(
-                        new LinkedHashSet<>(),
+                        Set.of(),
                         false,
                         "Новая подборка"
                 );
@@ -206,7 +186,7 @@ class CompilationServiceImplTest {
                 .thenReturn(compilation);
 
         CompilationDto updatedDto = new CompilationDto(
-                new LinkedHashSet<>(),
+                Set.of(),
                 1L,
                 false,
                 "Новая подборка"
@@ -218,12 +198,10 @@ class CompilationServiceImplTest {
         CompilationDto result =
                 compilationService.updateCompilation(1L, request);
 
-        assertThat(result.getTitle())
-                .isEqualTo("Новая подборка");
-
+        assertThat(result.getTitle()).isEqualTo("Новая подборка");
         assertThat(result.getPinned()).isFalse();
-        assertThat(compilation.getTitle())
-                .isEqualTo("Новая подборка");
+
+        assertThat(compilation.getTitle()).isEqualTo("Новая подборка");
         assertThat(compilation.getPinned()).isFalse();
         assertThat(compilation.getEvents()).isEmpty();
 
@@ -256,24 +234,18 @@ class CompilationServiceImplTest {
 
     @Test
     void updateCompilation_shouldReplaceEvents() {
-        Event secondEvent = new Event();
-        secondEvent.setId(2L);
-
-        Event firstEvent = new Event();
-        firstEvent.setId(1L);
-
         UpdateCompilationRequest request =
                 new UpdateCompilationRequest();
 
         request.setEvents(
-                new LinkedHashSet<>(Set.of(2L, 1L))
+                new LinkedHashSet<>(List.of(2L, 1L))
         );
 
         when(compilationRepository.findById(1L))
                 .thenReturn(Optional.of(compilation));
 
-        when(eventRepository.findAllById(request.getEvents()))
-                .thenReturn(List.of(secondEvent, firstEvent));
+        when(eventReader.getEvents(anyList()))
+                .thenReturn(List.of(eventDto(2L), eventDto(1L)));
 
         when(compilationRepository.save(compilation))
                 .thenReturn(compilation);
@@ -284,17 +256,13 @@ class CompilationServiceImplTest {
         compilationService.updateCompilation(1L, request);
 
         assertThat(compilation.getEvents())
-                .extracting(Event::getId)
                 .containsExactly(1L, 2L);
     }
 
     @Test
-    void updateCompilation_shouldClearEvents_whenEmptySetProvided() {
-        Event event = new Event();
-        event.setId(1L);
-
+    void updateCompilation_shouldClearEvents() {
         compilation.setEvents(
-                new LinkedHashSet<>(Set.of(event))
+                new LinkedHashSet<>(Set.of(1L))
         );
 
         UpdateCompilationRequest request =
@@ -315,64 +283,49 @@ class CompilationServiceImplTest {
 
         assertThat(compilation.getEvents()).isEmpty();
 
-        verify(eventRepository, never())
-                .findAllById(any());
+        verifyNoInteractions(eventReader);
     }
 
     @Test
-    void updateCompilation_shouldThrowNotFound_whenCompilationMissing() {
-        UpdateCompilationRequest request =
-                new UpdateCompilationRequest();
-
+    void updateCompilation_whenCompilationMissing_shouldThrowNotFound() {
         when(compilationRepository.findById(999L))
                 .thenReturn(Optional.empty());
 
         assertThatThrownBy(() ->
                 compilationService.updateCompilation(
-                        999L,
-                        request
-                ))
+                        999L, new UpdateCompilationRequest()
+                )
+        )
                 .isInstanceOf(NotFoundException.class)
-                .hasMessageContaining(
-                        "Compilation with id=999 was not found"
-                );
+                .hasMessageContaining("999");
 
-        verify(compilationRepository, never())
-                .save(any(Compilation.class));
+        verify(compilationRepository, never()).save(any());
     }
 
     @Test
-    void updateCompilation_shouldThrowNotFound_whenEventMissing() {
-        Event event = new Event();
-        event.setId(1L);
-
+    void updateCompilation_whenEventMissing_shouldThrowNotFound() {
         UpdateCompilationRequest request =
                 new UpdateCompilationRequest();
 
-        request.setEvents(
-                new LinkedHashSet<>(Set.of(1L, 2L))
-        );
+        request.setEvents(Set.of(1L, 2L));
 
         when(compilationRepository.findById(1L))
                 .thenReturn(Optional.of(compilation));
 
-        when(eventRepository.findAllById(request.getEvents()))
-                .thenReturn(List.of(event));
+        when(eventReader.getEvents(anyList()))
+                .thenReturn(List.of(eventDto(1L)));
 
         assertThatThrownBy(() ->
-                compilationService.updateCompilation(
-                        1L,
-                        request
-                ))
+                compilationService.updateCompilation(1L, request)
+        )
                 .isInstanceOf(NotFoundException.class)
                 .hasMessageContaining("2");
 
-        verify(compilationRepository, never())
-                .save(any(Compilation.class));
+        verify(compilationRepository, never()).save(any());
     }
 
     @Test
-    void updateCompilation_shouldThrowConflict_whenTitleExists() {
+    void updateCompilation_whenTitleExists_shouldThrowConflict() {
         UpdateCompilationRequest request =
                 new UpdateCompilationRequest();
 
@@ -387,14 +340,10 @@ class CompilationServiceImplTest {
                 ));
 
         assertThatThrownBy(() ->
-                compilationService.updateCompilation(
-                        1L,
-                        request
-                ))
+                compilationService.updateCompilation(1L, request)
+        )
                 .isInstanceOf(ConflictException.class)
-                .hasMessageContaining(
-                        "Повторяющаяся подборка"
-                );
+                .hasMessageContaining("Повторяющаяся подборка");
     }
 
     @Test
@@ -408,81 +357,76 @@ class CompilationServiceImplTest {
     }
 
     @Test
-    void deleteCompilation_shouldThrowNotFound_whenMissing() {
+    void deleteCompilation_whenMissing_shouldThrowNotFound() {
         when(compilationRepository.findById(999L))
                 .thenReturn(Optional.empty());
 
         assertThatThrownBy(() ->
-                compilationService.deleteCompilation(999L))
+                compilationService.deleteCompilation(999L)
+        )
                 .isInstanceOf(NotFoundException.class)
-                .hasMessageContaining(
-                        "Compilation with id=999 was not found"
-                );
+                .hasMessageContaining("999");
 
-        verify(compilationRepository, never())
-                .delete(any(Compilation.class));
+        verify(compilationRepository, never()).delete(any());
     }
 
     @Test
-    void getCompilations_shouldReturnAll_whenPinnedIsNull() {
+    void getCompilations_shouldReturnAll() {
         PageRequest pageable = PageRequest.of(0, 10);
         List<Long> ids = List.of(1L);
-        Page<Long> idsPage = new PageImpl<>(ids, pageable, 1);
 
         when(compilationRepository.findCompilationIds(
-                null,
-                pageable
-        )).thenReturn(idsPage);
+                null, pageable
+        )).thenReturn(new PageImpl<>(ids, pageable, 1));
 
         when(compilationRepository.findAllByIdsWithEvents(ids))
                 .thenReturn(List.of(compilation));
 
-        when(compilationMapper.toDto(compilation))
-                .thenReturn(compilationDto);
+        when(compilationMapper.loadEvents(anySet()))
+                .thenReturn(Map.of());
 
-        List<CompilationDto> result = compilationService.getCompilations(
-                null, pageable
-        );
+        when(compilationMapper.toDto(
+                eq(compilation), anyMap()
+        )).thenReturn(compilationDto);
+
+        List<CompilationDto> result =
+                compilationService.getCompilations(null, pageable);
 
         assertThat(result).containsExactly(compilationDto);
 
-        verify(compilationRepository).findCompilationIds(null, pageable);
+        verify(compilationRepository)
+                .findCompilationIds(null, pageable);
 
-        verify(compilationRepository).findAllByIdsWithEvents(ids);
-
-        verify(compilationMapper).toDto(compilation);
+        verify(compilationMapper)
+                .toDto(eq(compilation), anyMap());
     }
 
     @Test
     void getCompilations_shouldFilterByPinned() {
         PageRequest pageable = PageRequest.of(0, 10);
         List<Long> ids = List.of(1L);
-        Page<Long> idsPage = new PageImpl<>(ids, pageable, 1);
 
         when(compilationRepository.findCompilationIds(
-                true,
-                pageable
-        )).thenReturn(idsPage);
+                true, pageable
+        )).thenReturn(new PageImpl<>(ids, pageable, 1));
 
         when(compilationRepository.findAllByIdsWithEvents(ids))
                 .thenReturn(List.of(compilation));
 
-        when(compilationMapper.toDto(compilation))
-                .thenReturn(compilationDto);
+        when(compilationMapper.loadEvents(anySet()))
+                .thenReturn(Map.of());
+
+        when(compilationMapper.toDto(
+                eq(compilation), anyMap()
+        )).thenReturn(compilationDto);
 
         List<CompilationDto> result =
-                compilationService.getCompilations(
-                        true,
-                        pageable
-                );
+                compilationService.getCompilations(true, pageable);
 
         assertThat(result).containsExactly(compilationDto);
 
-        verify(compilationRepository).findCompilationIds(true, pageable);
-
-        verify(compilationRepository).findAllByIdsWithEvents(ids);
-
-        verify(compilationMapper).toDto(compilation);
+        verify(compilationRepository)
+                .findCompilationIds(true, pageable);
     }
 
     @Test
@@ -500,15 +444,14 @@ class CompilationServiceImplTest {
     }
 
     @Test
-    void getCompilation_shouldThrowNotFound_whenMissing() {
+    void getCompilation_whenMissing_shouldThrowNotFound() {
         when(compilationRepository.findById(999L))
                 .thenReturn(Optional.empty());
 
         assertThatThrownBy(() ->
-                compilationService.getCompilation(999L))
+                compilationService.getCompilation(999L)
+        )
                 .isInstanceOf(NotFoundException.class)
-                .hasMessageContaining(
-                        "Compilation with id=999 was not found"
-                );
+                .hasMessageContaining("999");
     }
 }

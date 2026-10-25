@@ -1,11 +1,10 @@
+
 package ru.practicum.comment.controller;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import ru.practicum.comment.service.CommentService;
 import ru.practicum.common.dto.CommentDto;
@@ -18,10 +17,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
-@AutoConfigureMockMvc
-@ActiveProfiles("test")
+@WebMvcTest(PublicCommentController.class)
 public class PublicCommentControllerTest {
+
     @Autowired
     private MockMvc mvc;
 
@@ -32,33 +30,43 @@ public class PublicCommentControllerTest {
 
     @Test
     void getComments_shouldReturnListOfComments() throws Exception {
-        when(service.getEventComments(anyLong(), anyInt(), anyInt(), anyString())).thenReturn(List.of(createCommentDto()));
+        when(service.getEventComments(
+                anyLong(), anyInt(), anyInt(), eq("createdAt")
+        )).thenReturn(List.of(createCommentDto()));
 
         mvc.perform(get("/events/{eventId}/comments", eventId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1L))
-                .andExpect(jsonPath("$[0].text").value("Wow, so beautiful!!!"));
+                .andExpect(jsonPath("$[0].text")
+                        .value("Wow, so beautiful!!!"));
     }
 
     @Test
-    void getComments_withoutComments_shouldReturnEmptyList() throws Exception {
-        when(service.getEventComments(anyLong(), anyInt(), anyInt(), anyString())).thenReturn(List.of());
+    void getComments_withoutComments_shouldReturnEmptyList()
+            throws Exception {
+
+        when(service.getEventComments(
+                anyLong(), anyInt(), anyInt(), eq("createdAt")
+        )).thenReturn(List.of());
 
         mvc.perform(get("/events/{eventId}/comments", eventId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isEmpty());
     }
 
-
     @Test
     void getComment_shouldReturnComment() throws Exception {
-        when(service.getComment(eventId, 1L)).thenReturn(createCommentDto());
+        when(service.getComment(eventId, 1L))
+                .thenReturn(createCommentDto());
 
-        mvc.perform(get("/events/{eventId}/comments/{commentId}", eventId, 1L))
+        mvc.perform(get(
+                        "/events/{eventId}/comments/{commentId}",
+                        eventId, 1L
+                ))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1L))
-                .andExpect(jsonPath("$.text").value("Wow, so beautiful!!!"));
-
+                .andExpect(jsonPath("$.text")
+                        .value("Wow, so beautiful!!!"));
     }
 
     private CommentDto createCommentDto() {

@@ -26,7 +26,7 @@ public class InternalUserController {
     @GetMapping("/{id}")
     public UserShortDto getUser(@PathVariable Long id) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Пользователь не найден: " + id));
+                .orElseThrow(() -> new NotFoundException("Пользователь с id=" + id + " не найден"));
 
         return UserShortDto.builder()
                 .id(user.getId())

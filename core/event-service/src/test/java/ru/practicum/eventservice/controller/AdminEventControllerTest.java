@@ -1,3 +1,4 @@
+
 package ru.practicum.eventservice.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -5,7 +6,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
@@ -31,8 +32,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
-@AutoConfigureMockMvc
+@WebMvcTest(AdminEventController.class)
 @ActiveProfiles("test")
 public class AdminEventControllerTest {
 
@@ -61,14 +61,9 @@ public class AdminEventControllerTest {
         categoryDto.setId(category.getId());
         categoryDto.setName(category.getName());
 
-        User initiator = new User();
-        initiator.setId(1L);
-        initiator.setName("Иван Петров");
-        initiator.setEmail("ivan@mail.ru");
-
         UserShortDto initiatorDto = new UserShortDto();
-        initiatorDto.setId(initiator.getId());
-        initiatorDto.setName(initiator.getName());
+        initiatorDto.setId(1L);
+        initiatorDto.setName("Иван Петров");
 
         Location location = new Location();
         location.setLat(55.754167f);
@@ -189,7 +184,7 @@ public class AdminEventControllerTest {
     @Test
     void updateEvent_withInvalidRequest_shouldReturnBadRequest() throws Exception {
         UpdateEventAdminRequest invalidRequest = UpdateEventAdminRequest.builder()
-                .annotation("") // пустая аннотация
+                .annotation("")
                 .build();
 
         mvc.perform(patch("/admin/events/{eventId}", 1L)

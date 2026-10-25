@@ -1,3 +1,4 @@
+
 package ru.practicum.eventservice.repository;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -28,11 +29,8 @@ public class EventRepositoryTest {
     @Autowired
     private CategoryRepository categoryRepository;
 
-    @Autowired
-    private UserRepository userRepository;
-
     private Category category;
-    private User initiator;
+    private Long initiatorId;
     private Event event1;
     private Event event2;
     private LocalDateTime now;
@@ -45,10 +43,7 @@ public class EventRepositoryTest {
         category.setName("Концерты");
         category = categoryRepository.save(category);
 
-        initiator = new User();
-        initiator.setName("Иван Петров");
-        initiator.setEmail("ivan@mail.ru");
-        initiator = userRepository.save(initiator);
+        initiatorId = 1L;
 
         Location location = new Location();
         location.setLat(55.754167f);
@@ -59,7 +54,8 @@ public class EventRepositoryTest {
         event1.setDescription("Описание события 1");
         event1.setTitle("Событие 1");
         event1.setCategory(category);
-        event1.setInitiator(initiator);
+        event1.setInitiatorId(initiatorId);
+        event1.setInitiatorName("Иван Петров");
         event1.setLocation(location);
         event1.setEventDate(now.plusDays(5));
         event1.setCreatedOn(now);
@@ -73,7 +69,8 @@ public class EventRepositoryTest {
         event2.setDescription("Описание события 2");
         event2.setTitle("Событие 2");
         event2.setCategory(category);
-        event2.setInitiator(initiator);
+        event2.setInitiatorId(initiatorId);
+        event2.setInitiatorName("Иван Петров");
         event2.setLocation(location);
         event2.setEventDate(now.plusDays(10));
         event2.setCreatedOn(now);
@@ -98,7 +95,7 @@ public class EventRepositoryTest {
     @Test
     void findAllByAdminFilters_shouldFilterByUsers() {
         Page<Event> result = eventRepository.findAllByAdminFilters(
-                List.of(initiator.getId()), null, null, null, null, PageRequest.of(0, 10)
+                List.of(initiatorId), null, null, null, null, PageRequest.of(0, 10)
         );
 
         assertThat(result.getContent()).hasSize(2);
@@ -111,7 +108,8 @@ public class EventRepositoryTest {
         );
 
         assertThat(result.getContent()).hasSize(1);
-        assertThat(result.getContent().get(0).getState()).isEqualTo(EventState.PENDING);
+        assertThat(result.getContent().get(0).getState())
+                .isEqualTo(EventState.PENDING);
     }
 
     @Test
@@ -130,7 +128,8 @@ public class EventRepositoryTest {
         );
 
         assertThat(result.getContent()).hasSize(1);
-        assertThat(result.getContent().get(0).getEventDate()).isBefore(now.plusDays(7));
+        assertThat(result.getContent().get(0).getEventDate())
+                .isBefore(now.plusDays(7));
     }
 
     @Test
@@ -145,7 +144,7 @@ public class EventRepositoryTest {
     @Test
     void findAllByAdminFilters_shouldHandleAllFiltersTogether() {
         Page<Event> result = eventRepository.findAllByAdminFilters(
-                List.of(initiator.getId()),
+                List.of(initiatorId),
                 List.of(EventState.PENDING),
                 List.of(category.getId()),
                 now.plusDays(1),
@@ -154,7 +153,8 @@ public class EventRepositoryTest {
         );
 
         assertThat(result.getContent()).hasSize(1);
-        assertThat(result.getContent().get(0).getId()).isEqualTo(event1.getId());
+        assertThat(result.getContent().get(0).getId())
+                .isEqualTo(event1.getId());
     }
 
     @Test
@@ -168,27 +168,29 @@ public class EventRepositoryTest {
 
         assertThat(page1.getContent()).hasSize(1);
         assertThat(page2.getContent()).hasSize(1);
-        assertThat(page1.getContent().get(0).getId()).isNotEqualTo(page2.getContent().get(0).getId());
+        assertThat(page1.getContent().get(0).getId())
+                .isNotEqualTo(page2.getContent().get(0).getId());
     }
 
     @Test
     void findByInitiatorId_shouldReturnEventsByUser() {
-        Page<Event> result = eventRepository.findByInitiatorId(initiator.getId(), PageRequest.of(0, 10));
+        Page<Event> result = eventRepository.findByInitiatorId(
+                initiatorId, PageRequest.of(0, 10)
+        );
 
         assertThat(result.getContent()).hasSize(2);
-        assertThat(result.getContent().get(0).getInitiator().getId()).isEqualTo(initiator.getId());
-        assertThat(result.getContent().get(1).getInitiator().getId()).isEqualTo(initiator.getId());
+        assertThat(result.getContent().get(0).getInitiatorId())
+                .isEqualTo(initiatorId);
+        assertThat(result.getContent().get(1).getInitiatorId())
+                .isEqualTo(initiatorId);
     }
 
     @Test
     void findByInitiatorId_shouldReturnEmpty_whenUserHasNoEvents() {
-        User otherUser = new User();
-        otherUser.setName("Другой пользователь");
-        otherUser.setEmail("other@mail.ru");
-        otherUser = userRepository.save(otherUser);
+        Long otherUserId = 999L;
 
         Page<Event> result = eventRepository.findByInitiatorId(
-                otherUser.getId(), PageRequest.of(0, 10)
+                otherUserId, PageRequest.of(0, 10)
         );
 
         assertThat(result.getContent()).isEmpty();
@@ -205,7 +207,8 @@ public class EventRepositoryTest {
         event3.setDescription("Описание события 3");
         event3.setTitle("Событие 3");
         event3.setCategory(category);
-        event3.setInitiator(initiator);
+        event3.setInitiatorId(initiatorId);
+        event3.setInitiatorName("Иван Петров");
         event3.setLocation(location);
         event3.setEventDate(now.plusDays(15));
         event3.setCreatedOn(now);
@@ -216,43 +219,48 @@ public class EventRepositoryTest {
         eventRepository.save(event3);
 
         Page<Event> page1 = eventRepository.findByInitiatorId(
-                initiator.getId(), PageRequest.of(0, 2)
+                initiatorId, PageRequest.of(0, 2)
         );
         Page<Event> page2 = eventRepository.findByInitiatorId(
-                initiator.getId(), PageRequest.of(1, 2)
+                initiatorId, PageRequest.of(1, 2)
         );
 
         assertThat(page1.getContent()).hasSize(2);
         assertThat(page2.getContent()).hasSize(1);
-        assertThat(page1.getContent().get(0).getId()).isNotEqualTo(page2.getContent().get(0).getId());
+        assertThat(page1.getContent().get(0).getId())
+                .isNotEqualTo(page2.getContent().get(0).getId());
     }
 
     @Test
     void findPublishedEvents_shouldReturnOnlyPublishedEvents() {
-
         Page<Event> result = eventRepository.findPublishedEvents(
                 null, null, null, now.minusDays(1), null, PageRequest.of(0, 10)
         );
 
         assertThat(result.getContent()).hasSize(1);
-        assertThat(result.getContent().get(0).getState()).isEqualTo(EventState.PUBLISHED);
-        assertThat(result.getContent().get(0).getId()).isEqualTo(event2.getId());
+        assertThat(result.getContent().get(0).getState())
+                .isEqualTo(EventState.PUBLISHED);
+        assertThat(result.getContent().get(0).getId())
+                .isEqualTo(event2.getId());
     }
 
     @Test
     void findPublishedEvents_shouldFilterByText() {
         Page<Event> result = eventRepository.findPublishedEvents(
-                "Тестовое событие 2", null, null, now.minusDays(1), null, PageRequest.of(0, 10)
+                "Тестовое событие 2", null, null,
+                now.minusDays(1), null, PageRequest.of(0, 10)
         );
 
         assertThat(result.getContent()).hasSize(1);
-        assertThat(result.getContent().get(0).getAnnotation()).contains("Тестовое событие 2");
+        assertThat(result.getContent().get(0).getAnnotation())
+                .contains("Тестовое событие 2");
     }
 
     @Test
     void findPublishedEvents_shouldFilterByCategories() {
         Page<Event> result = eventRepository.findPublishedEvents(
-                null, List.of(category.getId()), null, now.minusDays(1), null, PageRequest.of(0, 10)
+                null, List.of(category.getId()), null,
+                now.minusDays(1), null, PageRequest.of(0, 10)
         );
 
         assertThat(result.getContent()).hasSize(1);
@@ -261,7 +269,8 @@ public class EventRepositoryTest {
     @Test
     void findPublishedEvents_shouldFilterByPaid() {
         Page<Event> result = eventRepository.findPublishedEvents(
-                null, null, true, now.minusDays(1), null, PageRequest.of(0, 10)
+                null, null, true, now.minusDays(1), null,
+                PageRequest.of(0, 10)
         );
 
         assertThat(result.getContent()).hasSize(1);
@@ -271,11 +280,13 @@ public class EventRepositoryTest {
     @Test
     void findPublishedEvents_shouldFilterByDateRange() {
         Page<Event> result = eventRepository.findPublishedEvents(
-                null, null, null, now.plusDays(5), now.plusDays(15), PageRequest.of(0, 10)
+                null, null, null, now.plusDays(5), now.plusDays(15),
+                PageRequest.of(0, 10)
         );
 
         assertThat(result.getContent()).hasSize(1);
-        assertThat(result.getContent().get(0).getId()).isEqualTo(event2.getId());
+        assertThat(result.getContent().get(0).getId())
+                .isEqualTo(event2.getId());
     }
 
     @Test
@@ -289,7 +300,8 @@ public class EventRepositoryTest {
         event3.setDescription("Описание события 3");
         event3.setTitle("Событие 3");
         event3.setCategory(category);
-        event3.setInitiator(initiator);
+        event3.setInitiatorId(initiatorId);
+        event3.setInitiatorName("Иван Петров");
         event3.setLocation(location);
         event3.setEventDate(now.plusDays(20));
         event3.setCreatedOn(now);
@@ -300,7 +312,8 @@ public class EventRepositoryTest {
         eventRepository.save(event3);
 
         Page<Event> result = eventRepository.findPublishedEvents(
-                null, null, null, now.plusDays(15), now.plusDays(25), PageRequest.of(0, 10)
+                null, null, null, now.plusDays(15), now.plusDays(25),
+                PageRequest.of(0, 10)
         );
 
         assertThat(result.getContent()).isEmpty();
@@ -317,7 +330,8 @@ public class EventRepositoryTest {
         event3.setDescription("Описание события 3");
         event3.setTitle("Событие 3");
         event3.setCategory(category);
-        event3.setInitiator(initiator);
+        event3.setInitiatorId(initiatorId);
+        event3.setInitiatorName("Иван Петров");
         event3.setLocation(location);
         event3.setEventDate(now.plusDays(15));
         event3.setCreatedOn(now);
@@ -328,14 +342,17 @@ public class EventRepositoryTest {
         eventRepository.save(event3);
 
         Page<Event> page1 = eventRepository.findPublishedEvents(
-                null, null, null, now.minusDays(1), null, PageRequest.of(0, 1)
+                null, null, null, now.minusDays(1), null,
+                PageRequest.of(0, 1)
         );
         Page<Event> page2 = eventRepository.findPublishedEvents(
-                null, null, null, now.minusDays(1), null, PageRequest.of(1, 1)
+                null, null, null, now.minusDays(1), null,
+                PageRequest.of(1, 1)
         );
 
         assertThat(page1.getContent()).hasSize(1);
         assertThat(page2.getContent()).hasSize(1);
-        assertThat(page1.getContent().get(0).getId()).isNotEqualTo(page2.getContent().get(0).getId());
+        assertThat(page1.getContent().get(0).getId())
+                .isNotEqualTo(page2.getContent().get(0).getId());
     }
 }
