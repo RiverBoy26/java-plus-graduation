@@ -35,7 +35,6 @@ public class ParticipationRequestServiceImpl implements ParticipationRequestServ
     private final UserClient userClient;
     private final JdbcTemplate jdbcTemplate;
 
-    // Lock by event id in PostgreSQL across concurrent request-service instances.
     private void lockEvent(Long eventId) {
         jdbcTemplate.execute((org.springframework.jdbc.core.ConnectionCallback<Void>) connection -> {
             try (java.sql.PreparedStatement lock = connection.prepareStatement("select pg_advisory_xact_lock(?)")) {
@@ -104,14 +103,19 @@ public class ParticipationRequestServiceImpl implements ParticipationRequestServ
     @Override
     public ParticipationRequestDto cancelRequest(Long userId, Long requestId) {
         ParticipationRequest request = requestRepository.findById(requestId)
-                .orElseThrow(() -> new NotFoundException("Запрос не найден"));
+                .orElseThrow(() -> new NotFoundException("Запрос с id=" + requestId + " не найден"));
+
         if (!request.getRequesterId().equals(userId)) {
             throw new ConflictException("Нельзя отменить чужой запрос");
         }
+
+        if (request.getStatus() != RequestStatus.PENDING) {
+            throw new ConflictException("Можно отменить только заявку со статусом PENDING");
+        }
+
         request.setStatus(RequestStatus.CANCELED);
-        ParticipationRequest updated = requestRepository.save(request);
-        log.info("Отменён запрос: {}", updated.getId());
-        return toDto(updated);
+
+        return toDto(requestRepository.save(request));
     }
 
     @Override

@@ -16,8 +16,9 @@ spring:
 
         - id: request-service
           uri: lb://request-service
+          order: -10
           predicates:
-                  - Path=/users/*/requests,/users/*/requests/**
+            - Path=/users/*/requests,/users/*/requests/**,/users/*/events/*/requests,/users/*/events/*/requests/**
 
         - id: comment-service-admin
           uri: lb://comment-service
