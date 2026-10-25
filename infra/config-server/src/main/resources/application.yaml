@@ -11,7 +11,7 @@ spring:
       server:
         native:
           search-locations:
-            - file:./infra/config-repo
-            - file:./infra/config-repo/core
-            - file:./infra/config-repo/stats
-            - file:./infra/config-repo/infra
+            - ${CONFIG_REPO:file:./infra/config-repo}
+            - ${CONFIG_REPO:file:./infra/config-repo}/core
+            - ${CONFIG_REPO:file:./infra/config-repo}/stats
+            - ${CONFIG_REPO:file:./infra/config-repo}/infra

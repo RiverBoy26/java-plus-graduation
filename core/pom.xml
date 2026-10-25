@@ -9,7 +9,10 @@
         <version>0.0.1-SNAPSHOT</version>
     </parent>
     <modules>
-        <module>main-service</module>
+        <module>user-service</module>
+        <module>event-service</module>
+        <module>request-service</module>
+        <module>comment-service</module>
     </modules>
 
     <artifactId>core</artifactId>
