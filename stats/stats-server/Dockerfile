@@ -1,3 +1,22 @@
-FROM eclipse-temurin:21-jre-jammy
-COPY target/*.jar app.jar
-ENTRYPOINT ["java", "-jar", "/app.jar"]
+
+FROM maven:3.9-eclipse-temurin-21 AS build
+
+WORKDIR /app
+COPY . .
+
+RUN mvn -B -pl stats/stats-server -am -DskipTests package
+
+RUN set -eu; \
+    JAR=$(find stats/stats-server/target -maxdepth 1 -type f -name '*.jar' \
+        ! -name '*-sources.jar' ! -name '*-javadoc.jar' \
+        ! -name '*.original' ! -name '*.jar.original' \
+        | head -n 1); \
+    test -n "$JAR"; \
+    cp "$JAR" /app/app.jar
+
+FROM eclipse-temurin:21-jre
+WORKDIR /app
+COPY --from=build /app/app.jar app.jar
+
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "app.jar"]
