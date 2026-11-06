@@ -13,7 +13,8 @@ import stats.service.collector.UserActionProto;
 @Slf4j
 @GrpcService
 @RequiredArgsConstructor
-public class UserActionController extends UserActionControllerGrpc.UserActionControllerImplBase {
+public class UserActionController extends UserActionControllerGrpc.UserActionControllerImplBase
+        implements UserActionControllerApi {
     private final CollectorController controller;
 
     @Override

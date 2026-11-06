@@ -12,10 +12,11 @@ import stats.service.collector.UserActionProto;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class CollectorController {
+public class CollectorController implements CollectorControllerApi {
 
     private final CollectorKafkaProducer producer;
 
+    @Override
     public void sendMessage(UserActionProto proto) {
         UserActionAvro avro = UserActionMapper.mapToUserActionAvro(proto);
 

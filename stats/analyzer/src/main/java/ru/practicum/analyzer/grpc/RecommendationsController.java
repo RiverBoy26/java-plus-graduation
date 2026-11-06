@@ -12,7 +12,8 @@ import java.util.List;
 @Slf4j
 @GrpcService
 @RequiredArgsConstructor
-public class RecommendationsController extends RecommendationsControllerGrpc.RecommendationsControllerImplBase {
+public class RecommendationsController extends RecommendationsControllerGrpc.RecommendationsControllerImplBase
+        implements RecommendationsControllerApi {
     private final RecommendationService recommendationService;
 
     @Override
