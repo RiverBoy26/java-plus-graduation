@@ -38,9 +38,6 @@ class EventServiceImplTest {
     private EventMapper mapper;
 
     @Mock
-    private StatsClient statsClient;
-
-    @Mock
     private UserClient userClient;
 
     @Mock
