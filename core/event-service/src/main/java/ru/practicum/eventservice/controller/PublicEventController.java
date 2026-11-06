@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -43,8 +44,29 @@ public class PublicEventController implements PublicEventControllerApi {
     }
 
     @Override
-    public EventFullDto getEvent(@PathVariable Long id) {
-        log.info("GET /events/{}", id);
-        return eventService.getPublicEvent(id);
+    public EventFullDto getEvent(@PathVariable Long id, @RequestHeader("X-EWM-USER-ID") long userId) {
+        log.info("GET /events/{} by user {}", id, userId);
+
+        return eventService.getPublicEvent(id, userId);
+    }
+
+    @Override
+    public List<EventShortDto> getRecommendations(@RequestHeader("X-EWM-USER-ID") long userId,
+                                                  @RequestParam(defaultValue = "10") int maxResults) {
+        log.info(
+                "GET /events/recommendations, userId={}",
+                userId
+        );
+
+        return eventService.getRecommendations(userId, maxResults);
+    }
+
+    @Override
+    public void likeEvent(@PathVariable Long eventId,
+                          @RequestHeader("X-EWM-USER-ID") long userId
+    ) {
+        log.info("PUT /events/{}/like by user {}", eventId, userId);
+
+        eventService.likeEvent(eventId, userId);
     }
 }

@@ -17,7 +17,6 @@ import ru.practicum.eventservice.mapper.EventMapper;
 import ru.practicum.eventservice.model.Event;
 import ru.practicum.eventservice.repository.EventRepository;
 import ru.practicum.eventservice.repository.EventRepositoryCustom;
-import ru.practicum.statistics.client.controller.StatsClient;
 
 import java.util.List;
 import java.util.Optional;
@@ -37,9 +36,6 @@ class EventServiceImplTest {
 
     @Mock
     private EventMapper mapper;
-
-    @Mock
-    private StatsClient statsClient;
 
     @Mock
     private UserClient userClient;

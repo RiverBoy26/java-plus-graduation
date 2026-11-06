@@ -53,9 +53,9 @@ public class EventShortDto {
     private Long confirmedRequests;
 
     /**
-     * Количество просмотров события.
+     * Рейтинг.
      */
-    private Long views;
+    private Double rating;
 
     /**
      * Дата и время проведения события.

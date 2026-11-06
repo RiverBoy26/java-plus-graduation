@@ -3,6 +3,8 @@ package ru.practicum.eventservice.controller;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import ru.practicum.common.dto.EventShortDto;
 import ru.practicum.eventservice.dto.EventFullDto;
@@ -53,6 +55,23 @@ public interface PublicEventControllerApi {
      * @param id идентификатор события
      * @return полная информация о событии
      */
+
     @GetMapping("/{id}")
-    EventFullDto getEvent(@PathVariable Long id);
+    EventFullDto getEvent(
+            @PathVariable Long id,
+            @RequestHeader("X-EWM-USER-ID") long userId
+    );
+
+    @GetMapping("/recommendations")
+    List<EventShortDto> getRecommendations(
+            @RequestHeader("X-EWM-USER-ID") long userId,
+            @RequestParam(defaultValue = "10") int maxResults
+    );
+
+    @PutMapping("/{eventId}/like")
+    void likeEvent(
+            @PathVariable Long eventId,
+            @RequestHeader("X-EWM-USER-ID") long userId
+    );
+
 }
