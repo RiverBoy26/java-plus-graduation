@@ -143,4 +143,23 @@ public interface EventService {
      * @return список сущностей событий (только существующие)
      */
     List<Event> findAllByIds(List<Long> eventIds);
+
+    /**
+     * Получение опубликованного мероприятия
+     * с регистрацией просмотра пользователя.
+     */
+    EventFullDto getPublicEvent(Long eventId, long userId);
+
+    /**
+     * Получение рекомендаций мероприятий для пользователя.
+     */
+    List<EventShortDto> getRecommendations(
+            long userId,
+            int maxResults
+    );
+
+    /**
+     * Отправка лайка мероприятию.
+     */
+    void likeEvent(Long eventId, long userId);
 }
