@@ -1,3 +1,4 @@
+
 package ru.practicum.analyzer.similarity.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -8,7 +9,8 @@ import ru.practicum.analyzer.similarity.model.EventSimilarity;
 import java.util.List;
 import java.util.Optional;
 
-public interface SimilarityRepository extends JpaRepository<EventSimilarity, Long> {
+public interface SimilarityRepository
+        extends JpaRepository<EventSimilarity, Long> {
 
     @Query("""
             SELECT es
@@ -21,6 +23,19 @@ public interface SimilarityRepository extends JpaRepository<EventSimilarity, Lon
             @Param("eventId") long eventId
     );
 
-    Optional<EventSimilarity> findByEventAAndEventB(Long eventA, Long eventB);
+    @Query("""
+            SELECT es
+            FROM EventSimilarity es
+            WHERE es.eventA IN :eventIds
+               OR es.eventB IN :eventIds
+            ORDER BY es.score DESC
+            """)
+    List<EventSimilarity> findSimilarEventsByEventIds(
+            @Param("eventIds") List<Long> eventIds
+    );
 
+    Optional<EventSimilarity> findByEventAAndEventB(
+            Long eventA,
+            Long eventB
+    );
 }

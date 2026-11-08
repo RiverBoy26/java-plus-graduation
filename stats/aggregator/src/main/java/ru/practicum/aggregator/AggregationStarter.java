@@ -33,6 +33,7 @@ public class AggregationStarter {
     private String KAFKA_EVENTS_SIMILARITY_TOPIC;
 
     private final Duration CONSUME_ATTEMPT_TIMEOUT = Duration.ofMillis(1000);
+    private static final Duration PRODUCER_CLOSE_TIMEOUT = Duration.ofSeconds(10);
 
     public void start() {
         Runtime.getRuntime().addShutdownHook(new Thread(consumer::wakeup));
@@ -80,7 +81,7 @@ public class AggregationStarter {
                 log.info("Закрываем консьюмер");
                 consumer.close();
                 log.info("Закрываем продюсер");
-                producer.close();
+                producer.close(PRODUCER_CLOSE_TIMEOUT);
             }
         }
     }

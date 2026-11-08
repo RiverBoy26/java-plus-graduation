@@ -22,6 +22,7 @@ import static ru.practicum.common.config.JacksonConfig.DATE_TIME_FORMAT;
  * @see EventShortDto
  */
 public interface PublicEventControllerApi {
+    String HEADER = "X-EWM-USER-ID";
 
     /**
      * Получение списка опубликованных событий с фильтрацией и пагинацией.
@@ -59,19 +60,19 @@ public interface PublicEventControllerApi {
     @GetMapping("/{id}")
     EventFullDto getEvent(
             @PathVariable Long id,
-            @RequestHeader("X-EWM-USER-ID") long userId
+            @RequestHeader(HEADER) long userId
     );
 
     @GetMapping("/recommendations")
     List<EventShortDto> getRecommendations(
-            @RequestHeader("X-EWM-USER-ID") long userId,
+            @RequestHeader(HEADER) long userId,
             @RequestParam(defaultValue = "10") int maxResults
     );
 
     @PutMapping("/{eventId}/like")
     void likeEvent(
             @PathVariable Long eventId,
-            @RequestHeader("X-EWM-USER-ID") long userId
+            @RequestHeader(HEADER) long userId
     );
 
 }

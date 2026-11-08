@@ -24,15 +24,28 @@ public class RecommendationServiceImpl implements RecommendationService {
 
     public List<RecommendedEventProto> getRecommendationsForUser(long userId, int maxResult) {
         // события с которыми userId взаимодействовал недавно. вернуть пустой список, если их нет
+        if (maxResult <= 0) {
+            return List.of();
+        }
+
         Set<UserAction> userInteractions = getRecentUserAction(userId, K);
         if (userInteractions.isEmpty()) return List.of();
 
+        Set<Long> interactedEventIds = userActionRepository.findEventIdsByUserId(userId);
         //Найти мероприятия, похожие на те,
         // что отобрали на предыдущем этапе, но при этом пользователь с ними не взаимодействовал.
-        Map<Long, Double> similarEvents = findSimilarNewEvents(userId, userInteractions);
+        Map<Long, Double> similarEvents = findSimilarNewEvents(interactedEventIds, userInteractions);
 // Отсортировать найденные мероприятия по коэффициенту подобия от большего к меньшему.
 // Выбрать из них первые N мероприятий.
-        List<Long> topEvents = selectTopNNewEvents(similarEvents, K);
+        List<Long> topEvents = selectTopNNewEvents(similarEvents, maxResult);
+
+        Map<Long, List<EventSimilarity>> neighboursByEvent = findKNearestInteractedEvents(
+                        topEvents,
+                        interactedEventIds,
+                        K
+                );
+
+        Map<Long, Double> ratings = getUserRatings(userId, neighboursByEvent);
 
         List<RecommendedEventProto> recommendations = new ArrayList<>();
 
@@ -40,14 +53,11 @@ public class RecommendationServiceImpl implements RecommendationService {
             //        Выгрузить K просмотренных мероприятий, максимально похожих на предсказываемое.
 //        Важно найти именно максимально похожие мероприятия,
 //        с которыми пользователь уже взаимодействовал.
-            List<EventSimilarity> neighbours = findKNearestInteractedEvents(userId, eventId, K);
+            List<EventSimilarity> neighbours = neighboursByEvent.getOrDefault(eventId, List.of());
 
             if (neighbours.isEmpty()) {
                 continue;
             }
-            // Для всех мероприятий,
-            // полученных на предыдущем этапе, выгрузить оценки, которые поставил пользователь.
-            Map<Long, Double> ratings = getUserRatings(userId, neighbours, eventId);
 
             if (ratings.isEmpty()) {
                 continue;
@@ -165,16 +175,31 @@ public class RecommendationServiceImpl implements RecommendationService {
 // полученных на предыдущем этапе, выгрузить оценки, которые поставил пользователь.
     private Map<Long, Double> getUserRatings(
             long userId,
-            List<EventSimilarity> neighbors,
-            long eventId
+            Map<Long, List<EventSimilarity>> neighboursByEvent
     ) {
-        List<Long> neighborEventIds = neighbors.stream()
-                .map(similarity ->
-                        getOtherEventId(similarity, eventId))
-                .toList();
+        Set<Long> neighbourEventIds = new HashSet<>();
+
+        for (Map.Entry<Long, List<EventSimilarity>> entry
+                : neighboursByEvent.entrySet()) {
+
+            long eventId = entry.getKey();
+
+            for (EventSimilarity similarity : entry.getValue()) {
+                neighbourEventIds.add(
+                        getOtherEventId(similarity, eventId)
+                );
+            }
+        }
+
+        if (neighbourEventIds.isEmpty()) {
+            return Map.of();
+        }
 
         return userActionRepository
-                .findByUserIdAndEventIdIn(userId, neighborEventIds)
+                .findByUserIdAndEventIdIn(
+                        userId,
+                        new ArrayList<>(neighbourEventIds)
+                )
                 .stream()
                 .filter(action -> action.getRating() != null)
                 .collect(Collectors.toMap(
@@ -186,35 +211,48 @@ public class RecommendationServiceImpl implements RecommendationService {
     //        Выгрузить K просмотренных мероприятий, максимально похожих на предсказываемое.
 //        Важно найти именно максимально похожие мероприятия,
 //        с которыми пользователь уже взаимодействовал.
-    private List<EventSimilarity> findKNearestInteractedEvents(
-            long userId,
-            long eventId,
+    private Map<Long, List<EventSimilarity>> findKNearestInteractedEvents(
+            List<Long> eventIds,
+            Set<Long> interactedEventIds,
             int k
     ) {
-        Set<Long> interactedEventIds =
-                userActionRepository.findEventIdsByUserId(userId);
+        if (eventIds.isEmpty() || interactedEventIds.isEmpty()) {
+            return Map.of();
+        }
 
-        return similarityRepository.findSimilarEvents(eventId)
-                .stream()
-                .filter(similarity -> {
+        List<EventSimilarity> similarities =
+                similarityRepository.findSimilarEventsByEventIds(eventIds);
 
-                    long neighborEventId =
-                            getOtherEventId(
-                                    similarity,
-                                    eventId
-                            );
+        Map<Long, List<EventSimilarity>> result = new HashMap<>();
 
-                    return interactedEventIds.contains(
-                            neighborEventId
-                    );
-                })
-                .sorted(
-                        Comparator.comparing(
-                                EventSimilarity::getScore
-                        ).reversed()
-                )
-                .limit(k)
-                .toList();
+        Set<Long> targetEventIds = new HashSet<>(eventIds);
+
+        for (EventSimilarity similarity : similarities) {
+            Long eventA = similarity.getEventA();
+            Long eventB = similarity.getEventB();
+
+            if (targetEventIds.contains(eventA)
+                    && interactedEventIds.contains(eventB)) {
+                result.computeIfAbsent(eventA, id -> new ArrayList<>())
+                        .add(similarity);
+            }
+
+            if (targetEventIds.contains(eventB)
+                    && interactedEventIds.contains(eventA)) {
+                result.computeIfAbsent(eventB, id -> new ArrayList<>())
+                        .add(similarity);
+            }
+        }
+
+        result.replaceAll((eventId, neighbours) ->
+                neighbours.stream()
+                        .sorted(Comparator.comparingDouble(
+                                EventSimilarity::getScore).reversed())
+                        .limit(k)
+                        .toList()
+        );
+
+        return result;
     }
 
     // Отсортировать найденные мероприятия по коэффициенту подобия от большего к меньшему.
@@ -247,36 +285,47 @@ public class RecommendationServiceImpl implements RecommendationService {
 
     //Найти мероприятия, похожие на те,
     // что отобрали на предыдущем этапе, но при этом пользователь с ними не взаимодействовал.
+
     private Map<Long, Double> findSimilarNewEvents(
-            long userId,
+            Set<Long> interactedEventIds,
             Set<UserAction> recentActions
     ) {
-        Set<Long> interactedEventIds =
-                userActionRepository.findEventIdsByUserId(userId);
+        List<Long> recentEventIds = recentActions.stream()
+                .map(UserAction::getEventId)
+                .distinct()
+                .toList();
+
+        if (recentEventIds.isEmpty()) {
+            return Map.of();
+        }
+
+        List<EventSimilarity> similarities =
+                similarityRepository.findSimilarEventsByEventIds(
+                        recentEventIds
+                );
+
+        Set<Long> recentEventIdSet =
+                new HashSet<>(recentEventIds);
 
         Map<Long, Double> candidates = new HashMap<>();
 
-        for (UserAction action : recentActions) {
+        for (EventSimilarity similarity : similarities) {
+            Long eventA = similarity.getEventA();
+            Long eventB = similarity.getEventB();
 
-            List<EventSimilarity> similarities =
-                    similarityRepository.findSimilarEvents(
-                            action.getEventId()
-                    );
-
-            for (EventSimilarity similarity : similarities) {
-
-                long similarEventId =
-                        getOtherEventId(
-                                similarity,
-                                action.getEventId()
-                        );
-
-                if (interactedEventIds.contains(similarEventId)) {
-                    continue;
-                }
-
+            if (recentEventIdSet.contains(eventA)
+                    && !interactedEventIds.contains(eventB)) {
                 candidates.merge(
-                        similarEventId,
+                        eventB,
+                        similarity.getScore(),
+                        Math::max
+                );
+            }
+
+            if (recentEventIdSet.contains(eventB)
+                    && !interactedEventIds.contains(eventA)) {
+                candidates.merge(
+                        eventA,
                         similarity.getScore(),
                         Math::max
                 );
