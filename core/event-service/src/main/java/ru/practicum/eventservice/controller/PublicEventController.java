@@ -21,7 +21,6 @@ import static ru.practicum.common.config.JacksonConfig.DATE_TIME_FORMAT;
 
 @Slf4j
 @RestController
-@Validated
 @RequiredArgsConstructor
 @RequestMapping("/events")
 public class PublicEventController implements PublicEventControllerApi {
@@ -37,8 +36,8 @@ public class PublicEventController implements PublicEventControllerApi {
             @RequestParam(required = false) @DateTimeFormat(pattern = DATE_TIME_FORMAT) LocalDateTime rangeEnd,
             @RequestParam(defaultValue = "false") Boolean onlyAvailable,
             @RequestParam(required = false) String sort,
-            @RequestParam(defaultValue = "0") @PositiveOrZero int from,
-            @RequestParam(defaultValue = "10") @Positive int size) {
+            @RequestParam(defaultValue = "0") int from,
+            @RequestParam(defaultValue = "10") int size) {
 
         log.info("GET /events with params: text={}, categories={}, paid={}, rangeStart={}, rangeEnd={}, " +
                         "onlyAvailable={}, sort={}, from={}, size={}",
