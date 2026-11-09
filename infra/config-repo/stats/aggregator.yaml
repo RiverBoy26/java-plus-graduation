@@ -1,0 +1,26 @@
+server:
+  port: 0
+
+spring:
+  application:
+    name: aggregator
+
+grpc:
+  server:
+    port: 0
+
+kafka:
+  bootstrap-servers: localhost:9092
+  consumer:
+    group-id: aggregator-group
+    auto-offset-reset: latest
+    enable-auto-commit: false
+    topic: stats.user-actions.v1
+  producer:
+    topic: stats.events-similarity.v1
+
+logging:
+  level:
+    org.springframework.boot.context.config: DEBUG
+    org.springframework.cloud.config: DEBUG
+    com.zaxxer.hikari: DEBUG

@@ -78,9 +78,9 @@ public class EventFullDto {
     private Long confirmedRequests;
 
     /**
-     * Количество просмотров.
+     * Рейтинг.
      */
-    private Long views;
+    private Double rating;
 
     /**
      * Дата и время проведения события.
